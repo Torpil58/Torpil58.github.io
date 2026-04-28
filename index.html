@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gear Racer</title>
+  <style>
+    /* ── Reset & Base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #b8e8a2;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Phone Frame ── */
+    #game {
+      width: 360px;
+      height: 100vh;
+      max-height: 780px;
+      background: #c8f0a8;
+      border-radius: 28px;
+      border: 3px solid #7ec85a;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.25);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ── Top Bar ── */
+    #top-bar {
+      background: linear-gradient(135deg, #6ed44a, #4db82a);
+      padding: 10px 14px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid #3a9a18;
+      flex-shrink: 0;
+    }
+    .resource {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: rgba(255,255,255,0.22);
+      border-radius: 20px;
+      padding: 4px 10px;
+      min-width: 72px;
+    }
+    .resource .icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .resource.coins .icon  { background: #f7c01a; }
+    .resource.energy .icon { background: #f77d3a; }
+    .resource.gems .icon   { background: #c860f0; }
+    .resource .value {
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+      letter-spacing: 0.3px;
+      white-space: nowrap;
+    }
+
+    /* ── Racing Scene ── */
+    #race-scene {
+      position: relative;
+      height: 160px;
+      background: linear-gradient(180deg, #a8e878 0%, #7ed44a 100%);
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    /* Sky / clouds */
+    .cloud {
+      position: absolute;
+      background: rgba(255,255,255,0.75);
+      border-radius: 50px;
+      animation: driftCloud linear infinite;
+    }
+    .cloud::before, .cloud::after {
+      content: '';
+      position: absolute;
+      background: inherit;
+      border-radius: 50%;
+    }
+    .cloud.c1 { width: 60px; height: 20px; top: 10px; animation-duration: 18s; animation-delay: -4s; }
+    .cloud.c1::before { width: 25px; height: 25px; top: -10px; left: 10px; }
+    .cloud.c1::after  { width: 18px; height: 18px; top: -6px; left: 30px; }
+    .cloud.c2 { width: 80px; height: 22px; top: 20px; animation-duration: 24s; animation-delay: -12s; }
+    .cloud.c2::before { width: 30px; height: 30px; top: -14px; left: 12px; }
+    .cloud.c2::after  { width: 22px; height: 22px; top: -8px; left: 38px; }
+    @keyframes driftCloud {
+      from { left: 110%; }
+      to   { left: -120px; }
+    }
+
+    /* Road */
+    #road {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 62px;
+      background: #f4a0c0;
+      border-top: 3px solid #e8708a;
+    }
+    /* Dashes */
+    #road::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 100%;
+      height: 4px;
+      background: repeating-linear-gradient(
+        90deg,
+        #fff 0px, #fff 30px,
+        transparent 30px, transparent 50px
+      );
+      animation: dashMove 0.6s linear infinite;
+    }
+    @keyframes dashMove {
+      from { background-position: 0 0; }
+      to   { background-position: 80px 0; }
+    }
+
+    /* Grass strip */
+    #road::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 8px;
+      background: #5cb83a;
+    }
+
+    /* Cars */
+    .car {
+      position: absolute;
+      bottom: 14px;
+      width: 72px;
+      height: 38px;
+    }
+    .car svg { width: 100%; height: 100%; }
+
+    #car1 { left: 18px;  animation: carBounce1 0.3s ease-in-out infinite alternate; }
+    #car2 { right: 18px; animation: carBounce2 0.35s ease-in-out infinite alternate; }
+    @keyframes carBounce1 { from { transform: translateY(0); } to { transform: translateY(-3px); } }
+    @keyframes carBounce2 { from { transform: translateY(0); } to { transform: translateY(-4px) scaleX(-1); } }
+    #car2 svg { transform: scaleX(-1); }
+
+    /* Score banner */
+    #race-score {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255,255,255,0.85);
+      border-radius: 14px;
+      padding: 3px 14px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #555;
+      white-space: nowrap;
+      border: 1px solid #ddd;
+    }
+
+    /* ── Gear Grid Area ── */
+    #gear-area {
+      flex: 1;
+      background: #e8f8d8;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 10px 10px 4px;
+      overflow: hidden;
+    }
+
+    #gear-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: #3a7a1a;
+      margin-bottom: 8px;
+      text-shadow: 0 1px 0 #fff;
+    }
+
+    #gear-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 6px;
+      width: 100%;
+    }
+
+    .gear-cell {
+      aspect-ratio: 1;
+      border-radius: 10px;
+      border: 2px solid transparent;
+      background: #fff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.10);
+      position: relative;
+      padding: 4px;
+    }
+    .gear-cell:hover { transform: scale(1.06); }
+    .gear-cell.selected {
+      border-color: #f7c01a;
+      box-shadow: 0 0 0 3px #f7c01a55;
+    }
+    .gear-cell.locked { background: #ddd; cursor: not-allowed; }
+    .gear-cell .gear-icon {
+      font-size: 22px;
+      line-height: 1;
+    }
+    .gear-cell .gear-level {
+      font-size: 9px;
+      font-weight: 700;
+      color: #888;
+      margin-top: 1px;
+    }
+    .gear-cell .gear-badge {
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #f7501a;
+      color: #fff;
+      font-size: 8px;
+      font-weight: 700;
+      border-radius: 8px;
+      padding: 1px 4px;
+    }
+
+    /* Rarity colours */
+    .gear-cell.common   { background: #f0f4f0; }
+    .gear-cell.rare     { background: #d8eeff; }
+    .gear-cell.epic     { background: #ead8ff; }
+    .gear-cell.legendary{ background: #fff4c8; }
+
+    /* ── Bottom Bar ── */
+    #bottom-bar {
+      background: linear-gradient(180deg, #4db82a, #378a1a);
+      padding: 8px 10px 10px;
+      flex-shrink: 0;
+      border-top: 2px solid #2a6c0a;
+    }
+
+    /* Level strip */
+    #level-strip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    #level-badge {
+      background: #f7c01a;
+      color: #7a4000;
+      font-size: 11px;
+      font-weight: 900;
+      border-radius: 12px;
+      padding: 3px 10px;
+      border: 2px solid #e0a800;
+      white-space: nowrap;
+    }
+    #level-bar-wrap {
+      flex: 1;
+      height: 10px;
+      background: rgba(0,0,0,0.25);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    #level-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #f7e01a, #f79a1a);
+      border-radius: 10px;
+      transition: width 0.4s;
+    }
+    #level-reward {
+      font-size: 10px;
+      color: #d4f5a0;
+      white-space: nowrap;
+    }
+
+    /* Upgrade buttons */
+    #upgrade-buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 5px;
+    }
+    .upg-btn {
+      background: linear-gradient(180deg, #fff 0%, #e8e0d0 100%);
+      border: 2px solid #c8b890;
+      border-radius: 10px;
+      padding: 5px 4px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      transition: transform 0.1s, box-shadow 0.1s;
+      font-size: 11px;
+      font-weight: 700;
+      color: #5a4020;
+      user-select: none;
+    }
+    .upg-btn:hover  { transform: scale(1.04); }
+    .upg-btn:active { transform: scale(0.97); }
+    .upg-btn.hot {
+      background: linear-gradient(180deg, #fff4a0 0%, #f7c01a 100%);
+      border-color: #e0a800;
+    }
+    .upg-btn .btn-icon { font-size: 18px; }
+    .upg-btn .btn-cost {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+    }
+    .upg-btn .btn-cost .coin-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #f7c01a;
+      border: 1px solid #c89000;
+    }
+
+    /* ── Toast notification ── */
+    #toast {
+      position: absolute;
+      bottom: 120px;
+      left: 50%;
+      transform: translateX(-50%) translateY(20px);
+      background: rgba(0,0,0,0.75);
+      color: #fff;
+      border-radius: 20px;
+      padding: 7px 18px;
+      font-size: 12px;
+      font-weight: 600;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s, transform 0.25s;
+      white-space: nowrap;
+      z-index: 50;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 380px) {
+      #game { border-radius: 0; border: none; height: 100dvh; max-height: none; }
+    }
+  </style>
+</head>
+<body>
+<div id="game">
+
+  <!-- TOP BAR -->
+  <div id="top-bar">
+    <div class="resource coins">
+      <div class="icon">🪙</div>
+      <span class="value" id="coins-val">7,585</span>
+    </div>
+    <div class="resource energy">
+      <div class="icon">⚡</div>
+      <span class="value" id="energy-val">2/1</span>
+    </div>
+    <div class="resource gems">
+      <div class="icon">💎</div>
+      <span class="value" id="gems-val">205</span>
+    </div>
+  </div>
+
+  <!-- RACING SCENE -->
+  <div id="race-scene">
+    <div class="cloud c1"></div>
+    <div class="cloud c2"></div>
+    <div id="race-score">🏁 Race — Lap 3 / 5</div>
+    <div id="road"></div>
+
+    <!-- Car 1 (blue) -->
+    <div class="car" id="car1">
+      <svg viewBox="0 0 72 38" xmlns="http://www.w3.org/2000/svg">
+        <!-- body -->
+        <rect x="4" y="16" width="64" height="18" rx="6" fill="#4a9eff"/>
+        <!-- cabin -->
+        <rect x="18" y="6" width="34" height="14" rx="5" fill="#74bcff"/>
+        <!-- windshield -->
+        <rect x="22" y="8" width="14" height="10" rx="3" fill="#c8e8ff" opacity=".85"/>
+        <rect x="38" y="8" width="12" height="10" rx="3" fill="#c8e8ff" opacity=".85"/>
+        <!-- wheels -->
+        <circle cx="16" cy="34" r="7" fill="#333"/>
+        <circle cx="16" cy="34" r="3.5" fill="#aaa"/>
+        <circle cx="56" cy="34" r="7" fill="#333"/>
+        <circle cx="56" cy="34" r="3.5" fill="#aaa"/>
+        <!-- headlights -->
+        <ellipse cx="66" cy="22" rx="4" ry="3" fill="#fff9a0"/>
+        <!-- stripe -->
+        <rect x="4" y="22" width="64" height="3" rx="1" fill="#1a78e0" opacity=".4"/>
+        <!-- number -->
+        <text x="36" y="28" font-size="9" font-weight="900" fill="#fff" text-anchor="middle">01</text>
+      </svg>
+    </div>
+
+    <!-- Car 2 (red) — mirrors via CSS scaleX(-1) -->
+    <div class="car" id="car2">
+      <svg viewBox="0 0 72 38" xmlns="http://www.w3.org/2000/svg">
+        <rect x="4" y="16" width="64" height="18" rx="6" fill="#ff5050"/>
+        <rect x="18" y="6" width="34" height="14" rx="5" fill="#ff8888"/>
+        <rect x="22" y="8" width="14" height="10" rx="3" fill="#ffd0d0" opacity=".85"/>
+        <rect x="38" y="8" width="12" height="10" rx="3" fill="#ffd0d0" opacity=".85"/>
+        <circle cx="16" cy="34" r="7" fill="#333"/>
+        <circle cx="16" cy="34" r="3.5" fill="#aaa"/>
+        <circle cx="56" cy="34" r="7" fill="#333"/>
+        <circle cx="56" cy="34" r="3.5" fill="#aaa"/>
+        <ellipse cx="66" cy="22" rx="4" ry="3" fill="#fff9a0"/>
+        <rect x="4" y="22" width="64" height="3" rx="1" fill="#c01010" opacity=".4"/>
+        <text x="36" y="28" font-size="9" font-weight="900" fill="#fff" text-anchor="middle">02</text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- GEAR AREA -->
+  <div id="gear-area">
+    <div id="gear-title">⚙️ Gear Workshop</div>
+    <div id="gear-grid">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div id="bottom-bar">
+    <!-- Level strip -->
+    <div id="level-strip">
+      <div id="level-badge">LVL 400</div>
+      <div id="level-bar-wrap">
+        <div id="level-bar" style="width:68%"></div>
+      </div>
+      <div id="level-reward">🎁 +50💎</div>
+    </div>
+
+    <!-- Upgrade buttons -->
+    <div id="upgrade-buttons">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast"></div>
+</div>
+
+<script>
+  // ── State ──────────────────────────────────────────────────────────
+  const state = {
+    coins:  7585,
+    energy: { cur: 2, max: 1 },   // display as "2/1"
+    gems:   205,
+    level:  400,
+    xp:     68,           // % towards next level
+    selectedGear: null,
+  };
+
+  // ── Gear definitions ──────────────────────────────────────────────
+  const GEARS = [
+    { id: 0,  emoji: '⚙️',  name: 'Basic Gear',   rarity: 'common',    level: 12, locked: false },
+    { id: 1,  emoji: '🔧',  name: 'Wrench',        rarity: 'common',    level: 8,  locked: false },
+    { id: 2,  emoji: '🔩',  name: 'Bolt',          rarity: 'rare',      level: 15, locked: false, badge: 'NEW' },
+    { id: 3,  emoji: '⚡',  name: 'Turbo',         rarity: 'epic',      level: 20, locked: false },
+    { id: 4,  emoji: '🛡️',  name: 'Shield',        rarity: 'rare',      level: 9,  locked: false },
+    { id: 5,  emoji: '🔥',  name: 'Flame',         rarity: 'legendary', level: 25, locked: false, badge: '!' },
+    { id: 6,  emoji: '💨',  name: 'Nitro',         rarity: 'epic',      level: 18, locked: false },
+    { id: 7,  emoji: '🏎️',  name: 'Race Kit',      rarity: 'legendary', level: 30, locked: false },
+    { id: 8,  emoji: '🔑',  name: 'Key',           rarity: 'common',    level: 5,  locked: false },
+    { id: 9,  emoji: '💡',  name: 'Spark',         rarity: 'rare',      level: 11, locked: false },
+    { id: 10, emoji: '🧲',  name: 'Magnet',        rarity: 'epic',      level: 16, locked: false },
+    { id: 11, emoji: '🪛',  name: 'Driver',        rarity: 'common',    level: 7,  locked: false },
+    { id: 12, emoji: '🔮',  name: 'Crystal',       rarity: 'legendary', level: 22, locked: false },
+    { id: 13, emoji: '❄️',  name: 'Cryo',          rarity: 'rare',      level: 14, locked: false },
+    { id: 14, emoji: '🔒',  name: 'Locked',        rarity: 'common',    level: 0,  locked: true  },
+  ];
+
+  // ── Upgrade button definitions ─────────────────────────────────────
+  const UPGRADES = [
+    { label: 'Sprint',  cost: 1,   icon: '🏃', hot: false },
+    { label: 'Torque',  cost: 20,  icon: '🔧', hot: false },
+    { label: 'Nitro',   cost: 40,  icon: '💨', hot: true  },
+    { label: 'Turbo',   cost: 50,  icon: '⚡', hot: false },
+    { label: 'Armor',   cost: 80,  icon: '🛡️', hot: false },
+    { label: 'Engine',  cost: 100, icon: '⚙️', hot: true  },
+    { label: 'Boost',   cost: 150, icon: '🔥', hot: false },
+    { label: 'Max',     cost: 200, icon: '💎', hot: false },
+  ];
+
+  // ── Helpers ───────────────────────────────────────────────────────
+  function fmt(n) {
+    return n >= 1000 ? (n / 1000).toFixed(1).replace(/\.0$/, '') + 'k' : String(n);
+  }
+
+  function updateHUD() {
+    document.getElementById('coins-val').textContent  = fmt(state.coins);
+    document.getElementById('energy-val').textContent = `${state.energy.cur}/${state.energy.max}`;
+    document.getElementById('gems-val').textContent   = state.gems;
+    document.getElementById('level-badge').textContent = `LVL ${state.level}`;
+    document.getElementById('level-bar').style.width  = state.xp + '%';
+  }
+
+  let toastTimer = null;
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  // ── Render Gear Grid ──────────────────────────────────────────────
+  function renderGears() {
+    const grid = document.getElementById('gear-grid');
+    grid.innerHTML = '';
+    GEARS.forEach(g => {
+      const cell = document.createElement('div');
+      cell.className = `gear-cell ${g.rarity}${g.locked ? ' locked' : ''}${state.selectedGear === g.id ? ' selected' : ''}`;
+      cell.dataset.id = g.id;
+
+      cell.innerHTML = `
+        <div class="gear-icon">${g.locked ? '🔒' : g.emoji}</div>
+        <div class="gear-level">${g.locked ? '' : `Lv.${g.level}`}</div>
+        ${g.badge ? `<span class="gear-badge">${g.badge}</span>` : ''}
+      `;
+
+      if (!g.locked) {
+        cell.addEventListener('click', () => selectGear(g.id));
+      }
+      grid.appendChild(cell);
+    });
+  }
+
+  function selectGear(id) {
+    const g = GEARS.find(x => x.id === id);
+    if (!g || g.locked) return;
+    state.selectedGear = (state.selectedGear === id) ? null : id;
+    renderGears();
+    if (state.selectedGear !== null) {
+      showToast(`${g.emoji} ${g.name} selected — Lv.${g.level}`);
+    }
+  }
+
+  // ── Render Upgrade Buttons ────────────────────────────────────────
+  function renderUpgradeButtons() {
+    const wrap = document.getElementById('upgrade-buttons');
+    wrap.innerHTML = '';
+    UPGRADES.forEach(u => {
+      const btn = document.createElement('button');
+      btn.className = `upg-btn${u.hot ? ' hot' : ''}`;
+      btn.innerHTML = `
+        <span class="btn-icon">${u.icon}</span>
+        <span>${u.label}</span>
+        <span class="btn-cost"><span class="coin-dot"></span>${u.cost}</span>
+      `;
+      btn.addEventListener('click', () => doUpgrade(u));
+      wrap.appendChild(btn);
+    });
+  }
+
+  function doUpgrade(u) {
+    if (state.selectedGear === null) {
+      showToast('⚠️ Select a gear first!');
+      return;
+    }
+    if (state.coins < u.cost) {
+      showToast('❌ Not enough coins!');
+      return;
+    }
+    state.coins -= u.cost;
+    const g = GEARS.find(x => x.id === state.selectedGear);
+    g.level += 1;
+    state.xp = Math.min(100, state.xp + 2);
+    if (state.xp >= 100) {
+      state.level += 1;
+      state.xp = 0;
+      showToast(`🎉 Level up! Now LVL ${state.level}`);
+    } else {
+      showToast(`✅ ${u.label} applied to ${g.name}! (-${u.cost}🪙)`);
+    }
+    updateHUD();
+    renderGears();
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────
+  function init() {
+    renderGears();
+    renderUpgradeButtons();
+    updateHUD();
+  }
+
+  init();
+</script>
+</body>
+</html>
